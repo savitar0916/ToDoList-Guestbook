@@ -1,0 +1,63 @@
+syntax = "proto3";
+
+option csharp_namespace = "GuestbookServer";
+import "google/protobuf/timestamp.proto";
+
+package gusetbook;
+
+service GuestbookProtoBuf {
+  // 新增
+  rpc CreateGuestbookProtobuf (CreateGuestbookProtobufRequest) returns (CreateGuestbookProtobufResponse);
+  // 查詢全部
+  rpc GetGuestbookProtobuf (GetGuestbookProtobufRequest) returns (GetGuestbookProtobufResponse);
+  // 修改
+  rpc UpdateGuestbookProtobuf (UpdateGuestbookProtobufRequest) returns (UpdateGuestbookProtobufResponse);
+  // 刪除
+  rpc DeleteGuestbookProtobuf (DeleteGuestbookProtobufRequest) returns (DeleteGuestbookProtobufResponse);
+}
+
+message CreateGuestbookProtobufRequest {
+  string name = 1;
+  string title = 2;
+  string content = 3;
+  bool status = 4;
+  google.protobuf.Timestamp endtime = 5;
+}
+
+message CreateGuestbookProtobufResponse {
+  string message = 1;
+  int64 status = 2;
+  google.protobuf.Timestamp createAt = 3;
+}
+
+message GetGuestbookProtobufRequest {
+	string query = 1;
+}
+
+message GetGuestbookProtobufResponse {
+  repeated Guestbook guestbooks = 1;
+}
+message Guestbook{
+  string name = 1;
+  string title = 2;
+  string content = 3;
+  bool status = 4;
+  google.protobuf.Timestamp endtime = 5;
+}
+
+message UpdateGuestbookProtobufRequest {
+
+}
+
+message UpdateGuestbookProtobufResponse {
+
+}
+
+message DeleteGuestbookProtobufRequest {
+
+}
+
+message DeleteGuestbookProtobufResponse {
+
+}
+
