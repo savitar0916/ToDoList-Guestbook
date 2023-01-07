@@ -7,6 +7,7 @@ namespace Gateway.Models
 {
     public class GuestbookModel
     {
+        public string Id { get; set; }
 
         public string Name { get; set; }
 
