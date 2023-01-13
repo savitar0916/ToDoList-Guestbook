@@ -18,6 +18,7 @@ namespace Guestbook
         public void ConfigureServices(IServiceCollection services)
         {
             services.AddGrpc();
+            services.AddGrpcReflection();
 
         }
 
@@ -34,6 +35,8 @@ namespace Guestbook
             app.UseEndpoints(endpoints =>
             {
                 endpoints.MapGrpcService<GuestbookService>();
+
+                endpoints.MapGrpcReflectionService();
 
                 endpoints.MapGet("/", async context =>
                 {

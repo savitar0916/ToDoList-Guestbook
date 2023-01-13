@@ -9,10 +9,11 @@ using System.Threading.Tasks;
 using Gateway.Models;
 using GuestbookServer;
 using Microsoft.Extensions.Logging;
+using Guestbook.Services.Redis;
 
 namespace Guestbook.Services
 {
-    public class GuestbookService : GuestbookServer.GuestbookProtoBuf.GuestbookProtoBufBase
+    public class GuestbookService : GuestbookProtoBuf.GuestbookProtoBufBase
     {
         /*private readonly ILogger<GuestbookService> _logger;
         public GuestbookService(ILogger<GuestbookService> logger)
@@ -64,6 +65,9 @@ namespace Guestbook.Services
                 var createDocumentResponse = client.Index(guestbookModel, i => i
                     .Index(connectElasticSearch.Index)
                     );
+                //var createDocumentResponse = client.Index(createGuestbookProtobufRequest, i => i
+                //    .Index(connectElasticSearch.Index)
+                //    );
                 if (createDocumentResponse.IsValid)
                 {
                     Console.WriteLine("Document added successfully! ID: " + createDocumentResponse.Id);
@@ -94,6 +98,8 @@ namespace Guestbook.Services
 
         public override Task<GetGuestbookProtobufResponse> GetGuestbookProtobuf(GetGuestbookProtobufRequest getGuestbookProtobufRequest, ServerCallContext context)
         {
+
+
             //_logger.LogInformation("Call " + System.Reflection.MethodBase.GetCurrentMethod().Name + "Function");
             //回傳到Gateway的PB
             GetGuestbookProtobufResponse getGuestbookProtobufResponse = new GetGuestbookProtobufResponse();
@@ -111,11 +117,10 @@ namespace Guestbook.Services
                 //只查下面那三個欄位
                 var searchResponse = client.Search<GuestbookModel>(s => s
                     .Index(connectElasticSearch.Index)
+                    .Take(20)
                     .Query(q => q
                         .Match(m => m
-                            .Field(f => f.Name)
                             .Field(f => f.Title)
-                            .Field(f => f.Content)
                             .Query(getGuestbookProtobufRequest.Query)
                             )
                         )
@@ -124,16 +129,16 @@ namespace Guestbook.Services
                 //將回傳的所有資料Add進要回傳的PB裡面
                 getGuestbookProtobufResponse.Message = "Get Document Success";
                 getGuestbookProtobufResponse.Status = 400;
-
+                Console.WriteLine(searchResponse);
                 if (searchResponse.HitsMetadata.Total.Value.Equals(0))
                 {
                     getGuestbookProtobufResponse.Message = "The Query Can Not Found Anything";
                     getGuestbookProtobufResponse.Status = 400;
                     return Task.FromResult(getGuestbookProtobufResponse);
                 }
+                //計算總共有幾筆Document
                 foreach (var hit in searchResponse.Hits)
                 {
-                    Console.WriteLine(searchResponse.HitsMetadata.Total.Value.ToString() + "see");
          
                     GuestbookServer.Guestbook guestbook = new GuestbookServer.Guestbook()
                     {
@@ -144,14 +149,21 @@ namespace Guestbook.Services
                         Status = hit.Source.Status,
                         Endtime = ProtobufTimestamp.Timestamp.FromDateTimeOffset(hit.Source.Endtime)
                     };
+                    Console.WriteLine(hit.Source.Endtime);
+                    Console.WriteLine(ProtobufTimestamp.Timestamp.FromDateTimeOffset(hit.Source.Endtime));
                     getGuestbookProtobufResponse.Guestbooks.Add(guestbook);
                 }
-                
+
+                ConnectRedis connectRedis = new ConnectRedis();
+                var countQuery = connectRedis.Database.StringIncrement(getGuestbookProtobufRequest.Query);
+                Console.WriteLine(countQuery.ToString());
+
             }
             catch (Exception e) 
             {
                 getGuestbookProtobufResponse.Message = e.Message.ToString();
                 getGuestbookProtobufResponse.Status = 500;
+                getGuestbookProtobufResponse.Guestbooks.Clear();
             }
             return Task.FromResult(getGuestbookProtobufResponse);
         }
@@ -239,6 +251,73 @@ namespace Guestbook.Services
             deleteGuestbookProtobufResponse.Status = 400;
             deleteGuestbookProtobufResponse.Message = "Delete Document Success";
             return  Task.FromResult(deleteGuestbookProtobufResponse);
+        }
+
+        public override async Task SCreateGuestbooks(IAsyncStreamReader<CreateGuestbookProtobufRequest> requestStream,
+            IServerStreamWriter<CreateGuestbookProtobufResponse> responseStream, ServerCallContext serverCallContext)
+        {
+            var now = DateTimeOffset.Now;
+            var nowTimestamp = ProtobufTimestamp.Timestamp.FromDateTimeOffset(now);
+            ConnectElasticSearch connectElasticSearch = new ConnectElasticSearch();
+            var client = connectElasticSearch.elasticClient;
+
+            //檢查Index是否存在 沒有的話就建立
+            if (!client.Indices.Exists(connectElasticSearch.Index).Exists)
+            {
+                var createIndexResponse = client.Indices.Create(connectElasticSearch.Index, c => c
+                    .Map<GuestbookModel>(m => m
+                        .AutoMap()));
+                if (!createIndexResponse.IsValid)
+                {
+                    var createGuestbookProtobufResponse = new CreateGuestbookProtobufResponse() 
+                    {
+                        Message = "Error creating index:" + createIndexResponse.DebugInformation,
+                        Status = 500
+                    };
+                    await responseStream.WriteAsync(createGuestbookProtobufResponse);
+                }
+            }
+
+            while (await requestStream.MoveNext())
+            {
+                var request = requestStream.Current;
+                var guestbookModel = new GuestbookModel()
+                {
+                    Name = request.Name,
+                    Title = request.Title,
+                    Content = request.Content,
+                    Status = request.Status,
+                    Endtime = nowTimestamp.ToDateTimeOffset()
+                };
+
+                var response = new CreateGuestbookProtobufResponse
+                {
+                    Message = "Document added successfully! ID: ",
+                    Status = 400,
+                    CreateAt = nowTimestamp
+                };
+                await client.IndexAsync(guestbookModel,
+                    i => i.Index(connectElasticSearch.Index)
+                    ).ContinueWith((task) =>
+                    {
+                        if (task.IsFaulted)
+                        {
+                            var response = new CreateGuestbookProtobufResponse
+                            {
+                                Message = "Error adding document: " + task.Exception.Message,
+                                Status = 500,
+                                CreateAt = nowTimestamp
+                            };
+                        }
+                        else
+                        {
+                            var createDocumentResponse = task.Result;
+                            response.Message += createDocumentResponse.Id;
+                        }
+                    });
+                
+                await responseStream.WriteAsync(response);
+            }
         }
     }
 }

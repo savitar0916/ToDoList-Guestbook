@@ -14,6 +14,8 @@ service GuestbookProtoBuf {
   rpc UpdateGuestbookProtobuf (UpdateGuestbookProtobufRequest) returns (UpdateGuestbookProtobufResponse);
   // §R°£
   rpc DeleteGuestbookProtobuf (DeleteGuestbookProtobufRequest) returns (DeleteGuestbookProtobufResponse);
+
+  rpc SCreateGuestbooks (stream CreateGuestbookProtobufRequest) returns (stream CreateGuestbookProtobufResponse);
 }
 
 message CreateGuestbookProtobufRequest {
@@ -39,6 +41,7 @@ message GetGuestbookProtobufResponse {
 	int64 status = 2;
 	repeated Guestbook guestbooks = 3;
 }
+
 message Guestbook{
   string id = 1;
   string name = 2;

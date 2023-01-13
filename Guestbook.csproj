@@ -16,8 +16,11 @@
     <PackageReference Include="Elasticsearch.Net" Version="7.9.0" />
     <PackageReference Include="Google.Protobuf.Tools" Version="3.15.8" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.27.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server" Version="2.27.0" />
+    <PackageReference Include="Grpc.AspNetCore.Server.Reflection" Version="2.27.0" />
     <PackageReference Include="NEST" Version="7.9.0" />
     <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="StackExchange.Redis" Version="2.6.86" />
   </ItemGroup>
 
 </Project>
