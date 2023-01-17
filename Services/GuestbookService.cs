@@ -115,6 +115,7 @@ namespace Guestbook.Services
                 //            .Query(getGuestbookProtobufRequest.Query))));
                 //依據DSL查詢語法來做查詢
                 //只查下面那三個欄位
+                
                 var searchResponse = client.Search<GuestbookModel>(s => s
                     .Index(connectElasticSearch.Index)
                     .Take(20)
